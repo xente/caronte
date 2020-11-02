@@ -1,0 +1,45 @@
+<html>
+<head>
+    <link rel="stylesheet" href="https://maxcdn.bootstrapcdn.com/bootstrap/4.0.0/css/bootstrap.min.css"
+          integrity="sha384-Gn5384xqQ1aoWXA+058RXPxPg6fy4IWvTNh0E263XmFcJlSAwiGgFAW/dAiS6JXm" crossorigin="anonymous">
+</head>
+<body>
+<div class="container">
+    <div class="row">
+        {{range .Services}}
+            <div class="card border-light mb-4">
+                <div class="card-header">{{.Name}}</div>
+                <p class="card-text">Id <span class="badge badge badge-info">{{.Id}}</span></p>
+                <p class="card-text">Max: <span class="badge badge badge-info">{{.Max}}</span></p>
+                <p class="card-text">Min: <span class="badge badge badge-info">{{.Min}}</span>
+                <p class="card-text">Step: <span class="badge badge badge-info">{{.Step}}</span></p>
+                <p class="card-text">ScaleUpThreshold: <span class="badge badge badge-info">{{.ScaleUpThreshold}}</span>
+                <p class="card-text">ScaleDownThreshold: <span
+                            class="badge badge badge-info">{{.ScaleDownThreshold}}</span>
+                </p>
+                <p class="card-text">CoolDown: <span class="badge badge badge-info">{{.CoolDown}}</span></p>
+                {{if .MetricSpecs.Store }}
+                    <p class="card-text">Store: <span class="badge badge badge-info">{{.MetricSpecs.Store}}</span></p>
+                    <p class="card-text">Query: <span class="badge badge badge-info">{{.MetricSpecs.Query}}</span></p>
+                    {{if .MetricSpecs.AwsStore }}
+                        <p class="card-text">Period: <span
+                                    class="badge badge badge-info">{{.MetricSpecs.AwsStore.Period}}</span></p>
+                    {{end}}
+
+                {{end}}
+                {{if .InstanceSpecs.Provider }}
+                    <p class="card-text">Provider: <span
+                                class="badge badge badge-info">{{.InstanceSpecs.Provider}}</span></p>
+                    <p class="card-text">Provider: <span class="badge badge badge-info">{{.InstanceSpecs.Aws}}</span>
+                    </p>
+                {{end}}
+            </div>
+        {{end}}
+    </div>
+
+
+</div>
+
+</div>
+</body>
+</html>
