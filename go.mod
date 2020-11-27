@@ -8,7 +8,7 @@ require (
 	github.com/aws/aws-sdk-go v1.33.1
 	github.com/containerd/containerd v1.3.6 // indirect
 	github.com/docker/distribution v2.7.1+incompatible // indirect
-	github.com/docker/docker v17.12.0-ce-rc1.0.20200531234253-77e06fda0c94+incompatible
+	github.com/docker/docker v17.12.1-ce+incompatible
 	github.com/docker/go-connections v0.4.0 // indirect
 	github.com/docker/go-units v0.4.0 // indirect
 	github.com/gobuffalo/envy v1.9.0 // indirect

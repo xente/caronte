@@ -18,8 +18,8 @@ type ServiceScale struct {
 	SwarmEngine engine.SwarmEngine
 }
 
-var renew = make(chan int)
-var activeServices = make(map[int]core.CaronteService)
+var renew = make(chan string)
+var activeServices = make(map[string]core.CaronteService)
 var r1 = rand.New(rand.NewSource(time.Now().UnixNano()))
 
 func NewServiceScale() (ServiceScale, error) {
@@ -31,58 +31,56 @@ func NewServiceScale() (ServiceScale, error) {
 	}, err
 }
 
-func (s ServiceScale) Init(service chan core.CaronteService) {
+func (s ServiceScale) Init(service chan core.CaronteService, unsuscribe chan core.CaronteService) {
 
 	go func() {
 		for {
 			select {
-			case threadID := <-renew:
-				_, contains := activeServices[threadID]
+			case name := <-renew:
+				_, contains := activeServices[name]
 				if contains {
-					go s.worker(activeServices[threadID], renew)
+					go s.worker(activeServices[name], renew)
 				}
 
 			case service := <-service:
 
 				if (service == core.CaronteService{}) {
-					activeServices = make(map[int]core.CaronteService)
+					activeServices = make(map[string]core.CaronteService)
 
 				} else {
 					service.Thread = r1.Intn(1000)
-					activeServices[service.Thread] = service
+					service.InstanceSpecs.UpdatedAt = activeServices[service.Name].InstanceSpecs.UpdatedAt
+					zap.S().Infof("Service %s subscribed", service.Name)
+					activeServices[service.Name] = service
 					go s.worker(service, renew)
 				}
+
+			case unsuscribe := <-unsuscribe:
+				zap.S().Infof("Service %s unsuscribed", unsuscribe.Name)
+				delete(activeServices, unsuscribe.Name)
 			}
 		}
 	}()
 
 }
 
-func (s ServiceScale) worker(service core.CaronteService, renew chan<- int) {
+func (s ServiceScale) worker(service core.CaronteService, renew chan<- string) {
 
-	swarmService, err := s.SwarmEngine.GetService(service.Id)
-	if err == nil {
-		if time.Now().After(swarmService.Meta.UpdatedAt.Add(time.Duration(service.CoolDown) * time.Second)) {
-
-			result, err := service.MetricProvider.Query(service.MetricSpecs)
-			if err != nil {
-				zap.S().Error(err)
-			} else {
-				if result >= service.ScaleUpThreshold {
-					s.Scale(service, ScaleDirectionUp)
-				} else if result <= service.ScaleDownThreshold {
-					s.Scale(service, ScaleDirectionDown)
-				}
-
-			}
-		}
-	} else {
+	result, err := service.MetricProvider.Query(service.MetricSpecs)
+	if err != nil {
 		zap.S().Error(err)
-	}
+	} else {
 
+		if result >= service.ScaleUpThreshold {
+			s.Scale(service, ScaleDirectionUp)
+		} else if result <= service.ScaleDownThreshold {
+			s.Scale(service, ScaleDirectionDown)
+		}
+
+	}
 	time.Sleep(time.Duration(service.ServiceScheduler) * time.Second)
 
-	renew <- service.Thread
+	renew <- service.Name
 
 }
 
@@ -105,13 +103,16 @@ func (s ServiceScale) Scale(service core.CaronteService, direction int) {
 		zap.S().Debugf("%d - TargetReplicas %d , Instances %d, active %d ", service.Thread, targetReplicas, instances, total)
 		if (targetReplicas / service.MaxReplicasPerNode) != instances {
 			if direction == ScaleDirectionUp {
-
 				pending, _ := s.SwarmEngine.PendingTasks(service.Id)
 				//Run Infrastructure scale up only when there are not pending tasks
 				if pending == 0 {
 					ready := service.InstanceProvider.Scale(service.InstanceSpecs, ScaleDirectionUp)
 
 					if ready {
+						service.InstanceSpecs.UpdatedAt = time.Now().Add(time.Duration(service.InstanceSpecs.CoolDown) * time.Second)
+						//Override service to store the UpadtedAt value
+						activeServices[service.Name] = service
+						zap.S().Debugf("%d - Instance UpdatedAt ", service.Thread, service.InstanceSpecs.UpdatedAt)
 						_, err := s.SwarmEngine.Scale(service.Name, targetReplicas)
 						if err != nil {
 							zap.S().Error(err)
@@ -121,37 +122,53 @@ func (s ServiceScale) Scale(service core.CaronteService, direction int) {
 
 			} else if direction == ScaleDirectionDown {
 
-				pending, _ := s.SwarmEngine.PendingTasks(service.Id)
-				//Run Infrastructure scale down only when there are not pending tasks
-				if pending == 0 {
-					service.InstanceProvider.Scale(service.InstanceSpecs, ScaleDirectionDown)
+				if time.Now().After(service.InstanceSpecs.UpdatedAt) {
+					pending, _ := s.SwarmEngine.PendingTasks(service.Id)
+					//Run Infrastructure scale down only when there are not pending tasks
+					if pending == 0 {
+						service.InstanceProvider.Scale(service.InstanceSpecs, ScaleDirectionDown)
+					}
+
+					if instances*service.MaxReplicasPerNode == targetReplicas {
+
+						_, err := s.SwarmEngine.Scale(service.Name, targetReplicas)
+						if err != nil {
+							zap.S().Error(err)
+						}
+					}
+
 				}
 
+			}
+		} else if direction == ScaleDirectionDown {
+			if time.Now().After(service.InstanceSpecs.UpdatedAt) {
 				if instances*service.MaxReplicasPerNode == targetReplicas {
-
 					_, err := s.SwarmEngine.Scale(service.Name, targetReplicas)
 					if err != nil {
 						zap.S().Error(err)
 					}
 				}
-
-			}
-		} else if direction == ScaleDirectionDown {
-
-			if instances*service.MaxReplicasPerNode == targetReplicas {
-				_, err := s.SwarmEngine.Scale(service.Name, targetReplicas)
-				if err != nil {
-					zap.S().Error(err)
-				}
 			}
 		}
 	} else {
 
-		if (direction == ScaleDirectionUp && targetReplicas <= service.Max) ||
-			(direction == ScaleDirectionDown && targetReplicas >= service.Min) {
+		zap.S().Debugf("%d - TargetReplicas %d ,  active %d ", service.Thread, targetReplicas, total)
+		if direction == ScaleDirectionUp && targetReplicas <= service.Max {
 			_, err := s.SwarmEngine.Scale(service.Name, targetReplicas)
 			if err != nil {
 				zap.S().Error(err)
+			}
+			service.UpdatedAt = time.Now().Add(time.Duration(service.ServiceCoolDownDelay) * time.Second)
+			activeServices[service.Name] = service
+			zap.S().Debugf("%d - Service UpdatedAt ", service.Thread, service.UpdatedAt)
+		}
+		if direction == ScaleDirectionDown && targetReplicas >= service.Min {
+			if time.Now().After(service.UpdatedAt) {
+				_, err := s.SwarmEngine.Scale(service.Name, targetReplicas)
+				if err != nil {
+					zap.S().Error(err)
+				}
+
 			}
 		}
 	}

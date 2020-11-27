@@ -93,10 +93,7 @@ func (a AwsScale) RunningInstances(scaleSpecs ScaleSpecs) int {
 		asg, _ := a.getAsgByName(autoscalingGroup.Tags[0].ResourceId)
 		if len(asg.AutoScalingGroups) == 1 {
 			targetAsg := *asg.AutoScalingGroups[0]
-
-			//if !a.pendingActivityTasks(targetAsg.AutoScalingGroupName) {
 			return len(targetAsg.Instances)
-			//}
 		}
 	}
 
@@ -127,7 +124,7 @@ func (a AwsScale) pendingActivityTasks(name *string) bool {
 func (a AwsScale) PendingTasks(asg *autoscaling.DescribeAutoScalingGroupsOutput) bool {
 	for _, asg := range asg.AutoScalingGroups {
 		for _, instance := range asg.Instances {
-			zap.S().Infof("Checking Instance %s -  with status %s", *instance.InstanceId, *instance.LifecycleState)
+			zap.S().Debugf("Checking Instance %s -  with status %s", *instance.InstanceId, *instance.LifecycleState)
 
 			if *instance.LifecycleState == autoscaling.LifecycleStatePending ||
 				*instance.LifecycleState == autoscaling.LifecycleStatePendingProceed ||

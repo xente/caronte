@@ -4,28 +4,32 @@ import (
 	"Caronte/instances"
 	"Caronte/metricstores"
 	"strconv"
+	"time"
 
 	"github.com/docker/docker/api/types/swarm"
 	"go.uber.org/zap"
 )
 
 type CaronteService struct {
-	Id                 string
-	Name               string
-	ServiceScheduler   int
-	Max                int
-	Min                int
-	MaxReplicasPerNode int
-	Step               int
-	ScaleUpThreshold   float64
-	ScaleDownThreshold float64
-	CoolDown           int
-	Thread             int
-	MetricSpecs        metricstores.MetricSpecs
-	MetricProvider     metricstores.MetricProvider
-	InstanceSpecs      instances.ScaleSpecs
-	InstanceProvider   instances.InstanceManagerProvider
+	Id                   string
+	Name                 string
+	ServiceScheduler     int
+	Max                  int
+	Min                  int
+	MaxReplicasPerNode   int
+	ServiceCoolDownDelay int
+	Step                 int
+	ScaleUpThreshold     float64
+	ScaleDownThreshold   float64
+	Thread               int
+	MetricSpecs          metricstores.MetricSpecs
+	MetricProvider       metricstores.MetricProvider
+	InstanceSpecs        instances.ScaleSpecs
+	InstanceProvider     instances.InstanceManagerProvider
+	UpdatedAt            time.Time
 }
+
+var this CaronteService
 
 func NewCaronteService(id string, name string, annotations swarm.Annotations) CaronteService {
 
@@ -33,8 +37,8 @@ func NewCaronteService(id string, name string, annotations swarm.Annotations) Ca
 	max := labelStringToInt(annotations.Labels["caronte.scale.max"])
 	min := labelStringToInt(annotations.Labels["caronte.scale.min"])
 	step := labelStringToInt(annotations.Labels["caronte.scale.step"])
-	coolDown := labelStringToInt(annotations.Labels["caronte.scale.coolDown"])
-	maxReplicasPerNode := labelStringToInt(annotations.Labels["caronte.scale.maxPreplicasPerNode"])
+	serviceCoolDownDelay := labelStringToInt(annotations.Labels["caronte.service.coolDownDelay"])
+	maxReplicasPerNode := labelStringToInt(annotations.Labels["caronte.scale.maxReplicasPerNode"])
 
 	scaleUpThreshold := labelStringToFloat(annotations.Labels["caronte.metric.scaleUpThreshold"])
 	scaleDownThreshold := labelStringToFloat(annotations.Labels["caronte.metric.scaleDownThreshold"])
@@ -45,19 +49,20 @@ func NewCaronteService(id string, name string, annotations swarm.Annotations) Ca
 	queue := annotations.Labels["caronte.metric.sqs.queue"]
 
 	provider := annotations.Labels["caronte.instance.provider"]
+	instanceCoolDownDelay := labelStringToInt(annotations.Labels["caronte.instance.coolDownDelay"])
 	filters := annotations.Labels["caronte.instance.aws.asg.filters"]
 
 	caronteService := CaronteService{
-		Id:                 id,
-		Name:               name,
-		ServiceScheduler:   serviceScheduler,
-		Max:                max,
-		Min:                min,
-		MaxReplicasPerNode: maxReplicasPerNode,
-		Step:               step,
-		ScaleUpThreshold:   scaleUpThreshold,
-		ScaleDownThreshold: scaleDownThreshold,
-		CoolDown:           coolDown,
+		Id:                   id,
+		Name:                 name,
+		ServiceScheduler:     serviceScheduler,
+		Max:                  max,
+		Min:                  min,
+		MaxReplicasPerNode:   maxReplicasPerNode,
+		ServiceCoolDownDelay: serviceCoolDownDelay,
+		Step:                 step,
+		ScaleUpThreshold:     scaleUpThreshold,
+		ScaleDownThreshold:   scaleDownThreshold,
 		MetricSpecs: metricstores.MetricSpecs{
 			Store: store,
 			Query: query,
@@ -73,6 +78,7 @@ func NewCaronteService(id string, name string, annotations swarm.Annotations) Ca
 		},
 		InstanceSpecs: instances.ScaleSpecs{
 			Provider: provider,
+			CoolDown: instanceCoolDownDelay,
 			Aws: instances.AwsScale{
 				Filters: filters,
 			},
@@ -81,6 +87,7 @@ func NewCaronteService(id string, name string, annotations swarm.Annotations) Ca
 
 	caronteService.MetricProvider, _ = metricstores.MetricProviderStore{}.GetProvider(caronteService.MetricSpecs)
 	caronteService.InstanceProvider, _ = instances.InstanceProviderManager{}.GetProvider(caronteService.InstanceSpecs)
+	this = caronteService
 
 	return caronteService
 }

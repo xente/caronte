@@ -2,12 +2,14 @@ package instances
 
 import (
 	"errors"
+	"time"
 )
 
 type ScaleSpecs struct {
-	Provider    string
-	MaxReplicas int
-	Aws         AwsScale
+	Provider  string
+	CoolDown  int
+	UpdatedAt time.Time
+	Aws       AwsScale
 }
 
 type AwsScale struct {
