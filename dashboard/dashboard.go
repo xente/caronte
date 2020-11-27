@@ -4,10 +4,11 @@ import (
 	"Caronte/core"
 	"Caronte/orchestrator/discovery"
 	"fmt"
-	"github.com/gobuffalo/packr/v2"
-	"go.uber.org/zap"
 	"html/template"
 	"net/http"
+
+	"github.com/gobuffalo/packr/v2"
+	"go.uber.org/zap"
 )
 
 type PageData struct {

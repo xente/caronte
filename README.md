@@ -30,7 +30,7 @@ based threshold for metrics.
  | caronte.scale.max   |  Service | Define the max replicas for a target service  |
  | caronte.scale.min   |  Service |  Define the min replicas for a target service |
  | caronte.scale.step  |  Service |  Define the step replicas increase for a target service  |
- | caronte.scale.coolDown | Service  | Define coolDown time in seconds for services scale |
+ | caronte.scale.service.coolDownDelay | Service  | Define coolDown time in seconds for services scale |
  | caronte.scale.maxPreplicasPerNode | Service | Define max replicas per node when the instance provider is activated |
  | caronte.metric.store  | Metrics  |  Metric store to be used allowed (cloudwatch , prometheus)  |
  | caronte.metric.query | Metrics | Metric store query |
@@ -39,6 +39,7 @@ based threshold for metrics.
  | caronte.metric.prometheus.address | Metrics/Prometheus  | Prometheus server address  |
  | caronte.metric.aws.period | Metrics/AWS | CloudWatch query period in seconds  |
  | caronte.instance.provider | Instances | Instances provider allowed (aws) |
+ | caronte.instance.coolDownDelay | Instances | Define coolDown delay time in seconds for Instance  |
  | caronte.instance.aws.asg.filters | Instances/aws | Tags filters to define Aws AutoscalingGroup   |
  
  ## Configuration Sample
@@ -54,7 +55,7 @@ based threshold for metrics.
          caronte.scale.max: 8
          caronte.scale.min: 1
          caronte.scale.step: 2
-         caronte.scale.coolDown: 10
+         caronte.scale.service.coolDown: 10
          caronte.metric.scaleDownThreshold: 0
          caronte.metric.scaleUpThreshold: 0
          caronte.metric.store: "cloudwatch"
@@ -74,7 +75,7 @@ based threshold for metrics.
            caronte.scale.max: 8
            caronte.scale.min: 1
            caronte.scale.step: 2
-           caronte.scale.coolDown: 10
+           caronte.scale.service.coolDown: 10
            caronte.metric.scaleDownThreshold: 0
            caronte.metric.scaleUpThreshold: 0
            caronte.metric.store: "prometheus"

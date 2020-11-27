@@ -28,7 +28,7 @@ type SwarmEngine interface {
 
 func NewSwarm() (SwarmClient, error) {
 
-	dockerClient, err := client.NewClientWithOpts(client.FromEnv, client.WithAPIVersionNegotiation())
+	dockerClient, err := client.NewEnvClient()
 	if err != nil {
 		return SwarmClient{}, err
 	}
@@ -91,7 +91,7 @@ func (p SwarmClient) Scale(serviceID string, target int) (bool, error) {
 
 	if total != target {
 
-		service, _, err := p.DockerClient.ServiceInspectWithRaw(ctx, serviceID, types.ServiceInspectOptions{InsertDefaults: true})
+		service, _, err := p.DockerClient.ServiceInspectWithRaw(ctx, serviceID, types.ServiceInspectOptions{})
 		if err != nil {
 			return false, err
 		}
